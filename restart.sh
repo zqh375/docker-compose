@@ -1,0 +1,1 @@
+docker-compose restart && docker exec -it php /bin/bash

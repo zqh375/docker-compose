@@ -1,0 +1,5 @@
+scrape_configs:
+  - job_name: 'myapp'
+    scrape_interval: 1s # 设置爬取间隔为 30 秒
+    static_configs:
+      - targets: ['php:9510'] # 设置监控目标为 myapp 服务的地址和端口号
