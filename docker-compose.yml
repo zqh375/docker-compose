@@ -1,0 +1,255 @@
+version: '3.6'
+services:
+  web:
+    image: nginx:1.16-alpine
+    container_name: nginx
+    ports:
+      - 86:86
+    depends_on:
+      - php
+    volumes:
+      - ./www:/www
+      - ./nginx:/etc/nginx
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.2
+
+  php:
+    #    image: guqingfeng/liaofeng:v6
+    image: guqingfeng/liaofeng:v14
+    container_name: php
+    volumes:
+      - ./www:/www
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.3
+    stdin_open: true
+    tty: true
+
+  db:
+    image: mysql:8.0
+    container_name: mysql
+    ports:
+      - 3306:3306
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: "123456"
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/conf:/etc/mysql/conf.d
+      - ./mysql/custom.cnf:/etc/mysql/conf.d/custom.cnf
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.4
+
+  redis:
+    image: redis:6.0-alpine
+    container_name: redis-server
+    ports:
+      - 6389:6389
+    command: [ 'redis-server', '/usr/local/etc/redis/redis.conf' ]
+    volumes:
+      - ./redis/conf:/usr/local/etc/redis
+      - ./redis/data:/data
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.5
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      local-net:
+       ipv4_address: 172.20.0.6
+
+  consul:
+    image: hashicorp/consul:latest
+    container_name: consul
+    restart: always
+    ports:
+      - 8500:8500
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.7
+    command: agent -server -client=0.0.0.0 -ui -bind=0.0.0.0 -bootstrap-expect=1 -node=consul1 -datacenter=dc1
+
+  consul1:
+    image: hashicorp/consul:latest
+    container_name: consul1
+    restart: always
+    ports:
+      - 8501:8500
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.8
+    command: agent -server -client=0.0.0.0 -ui -bind=0.0.0.0  -join=consul:8301
+
+  consul-2:
+    image: hashicorp/consul:latest
+    container_name: consul2
+    restart: always
+    ports:
+      - 8502:8500
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.9
+    command: agent -server -client=0.0.0.0 -ui -bind=0.0.0.0  -join=consul:8301
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - 5672:5672
+      - 15672:15672
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.10
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    restart: always
+    ports:
+      - 9411:9411
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.11
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.12
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      local-net:
+        ipv4_address: 172.20.0.13
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+#  elasticsearch:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:${ELK_VERSION}
+#    container_name: elasticsearch
+#    volumes:
+#      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+#      - ./elasticsearch/data:/usr/share/elasticsearch/data
+#    ports:
+#      - "9200:9200"
+#      - "9300:9300"
+#    environment:
+#      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+#      ELASTIC_PASSWORD: changeme
+#      discovery.type: single-node
+#    networks:
+#      local-net:
+#        ipv4_address: 172.20.0.9
+
+#  logstash:
+#    image: docker.elastic.co/logstash/logstash:${ELK_VERSION}
+#    container_name: logstash
+#    volumes:
+#      - type: bind
+#        source: ./logstash/config/logstash.yml
+#        target: /usr/share/logstash/config/logstash.yml
+#        read_only: true
+#      - type: bind
+#        source: ./logstash/pipeline
+#        target: /usr/share/logstash/pipeline
+#        read_only: true
+#    ports:
+#      - "5044:5044"
+#      - "5000:5000/tcp"
+#      - "5000:5000/udp"
+#      - "9600:9600"
+#    environment:
+#      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+#    depends_on:
+#      - elasticsearch
+#    networks:
+#      local-net:
+#        ipv4_address: 172.20.0.10
+
+#  kibana:
+#    image: docker.elastic.co/kibana/kibana:${ELK_VERSION}
+#    container_name: kibana
+#    volumes:
+#      - type: bind
+#        source: ./kibana/config/kibana.yml
+#        target: /usr/share/kibana/config/kibana.yml
+#        read_only: true
+#    ports:
+#      - "5601:5601"
+#    depends_on:
+#      - elasticsearch
+#    networks:
+#      local-net:
+#        ipv4_address: 172.20.0.11
+
+#  elasticsearch:
+#    image: elasticsearch:7.10.1
+#    container_name: elasticsearch
+#    restart: always
+#    ports:
+#      - 9200:9200
+#    environment:
+#      discovery.type: single-node
+#      TZ: Asia/Shanghai
+#    #volumes:
+#    #   - ./elasticsearch/logs:/usr/share/elasticsearch/logs
+#    #   - ./elasticsearch/data:/usr/share/elasticsearch/data
+#    #   - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#  oap:
+#    image: apache/skywalking-oap-server:8.5.0-es7
+#    container_name: oap
+#    depends_on:
+#      - elasticsearch
+#    links:
+#      - elasticsearch
+#    restart: always
+#    ports:
+#      - 11800:11800
+#      - 12800:12800
+#    environment:
+#      SW_STORAGE: elasticsearch7  # 指定ES版本
+#      SW_STORAGE_ES_CLUSTER_NODES: elasticsearch:9200
+#      TZ: Asia/Shanghai
+#    # volumes:
+#    #  - ./config/alarm-settings.yml:/skywalking/config/alarm-settings.yml
+#  ui:
+#    image: apache/skywalking-ui:8.5.0
+#    container_name: ui
+#    restart: always
+#    ports:
+#      - 8080:8080
+#    environment:
+#      SW_OAP_ADDRESS: https://skywalkingopen.staging.datagrpc.babybus.com
+#      TZ: Asia/Shanghai
+
+networks:
+  local-net:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
